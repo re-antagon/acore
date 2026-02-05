@@ -16,6 +16,7 @@ import org.antagon.acore.listener.PlayerJoinListener;
 import org.antagon.acore.listener.PlayerMoveListener;
 import org.antagon.acore.listener.ReferralListener;
 import org.antagon.acore.listener.SchvapchichiListener;
+import org.antagon.acore.listener.StonecutterBlockProcessorListener;
 import org.antagon.acore.listener.VillagerTransportListener;
 import org.antagon.acore.util.CurseManager;
 import org.antagon.acore.util.ReferralManager;
@@ -105,6 +106,12 @@ public final class Acore extends JavaPlugin {
         if (configManager.getBoolean("referrals.enabled", true)) {
             getServer().getPluginManager().registerEvents(new ReferralListener(this, referralManager), this);
             getLogger().info("Referral feature enabled");
+        }
+
+        // Register StonecutterBlockProcessorListener if enabled in config
+        if (configManager.getBoolean("stonecutterBlockProcessor.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new StonecutterBlockProcessorListener(this), this);
+            getLogger().info("Stonecutter Block Processor feature enabled");
         }
     }
 

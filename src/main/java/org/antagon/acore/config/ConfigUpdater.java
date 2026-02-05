@@ -8,7 +8,7 @@ import java.util.logging.Logger;
 
 public class ConfigUpdater {
     private final Logger logger;
-    private static final int REQUIRED_VERSION = 1;
+    private static final int REQUIRED_VERSION = 2;
 
     public ConfigUpdater(Logger logger) {
         this.logger = logger;
