@@ -7,6 +7,7 @@ import org.antagon.acore.commands.LinkCommand;
 import org.antagon.acore.commands.SchvapchichiCommand;
 import org.antagon.acore.commands.ShowInfoCommand;
 import org.antagon.acore.core.ConfigManager;
+import org.antagon.acore.listener.AnvilFallListener;
 import org.antagon.acore.listener.BannerHeadListener;
 import org.antagon.acore.listener.BlockInteractionListener;
 import org.antagon.acore.listener.FogPotionListener;
@@ -113,6 +114,15 @@ public final class Acore extends JavaPlugin {
             getServer().getPluginManager().registerEvents(new StonecutterBlockProcessorListener(this), this);
             getLogger().info("Stonecutter Block Processor feature enabled");
         }
+
+        // TODO:
+        // https://www.getmerlin.in/ru/chat/ae5b6bb4-9107-43f9-b3af-676f770ad42c
+        // What's missing: anvil doesn't allows you to piston itself to bounce it.
+        // Register AnvilFallListener if enabled in config
+        //if (configManager.getBoolean("anvilFallListener.enabled", true)) {
+            // getServer().getPluginManager().registerEvents(new AnvilFallListener(this), this);
+            // getLogger().info("Anvil Fall Listener feature enabled");
+        //}
     }
 
     private void registerCommands() {
