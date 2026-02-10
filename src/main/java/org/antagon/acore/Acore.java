@@ -7,11 +7,13 @@ import org.antagon.acore.commands.LinkCommand;
 import org.antagon.acore.commands.SchvapchichiCommand;
 import org.antagon.acore.commands.ShowInfoCommand;
 import org.antagon.acore.core.ConfigManager;
+import org.antagon.acore.listener.AnvilFallListener;
 import org.antagon.acore.listener.BannerHeadListener;
 import org.antagon.acore.listener.BlockInteractionListener;
 import org.antagon.acore.listener.FogPotionListener;
 import org.antagon.acore.listener.ItemFrameListener;
 import org.antagon.acore.listener.MinecartSpeedListener;
+import org.antagon.acore.listener.PistonLaunchAnvilListener;
 import org.antagon.acore.listener.PlayerJoinListener;
 import org.antagon.acore.listener.PlayerMoveListener;
 import org.antagon.acore.listener.ReferralListener;
@@ -109,9 +111,23 @@ public final class Acore extends JavaPlugin {
         }
 
         // Register StonecutterBlockProcessorListener if enabled in config
+        // TODO: Missing sound when processing
+        // TODO: Process stone to cobblestone, deepslate to cracked deepslate and etc
         if (configManager.getBoolean("stonecutterBlockProcessor.enabled", true)) {
             getServer().getPluginManager().registerEvents(new StonecutterBlockProcessorListener(this), this);
             getLogger().info("Stonecutter Block Processor feature enabled");
+        }
+
+        // Register AnvilFallListener if enabled in config
+        if (configManager.getBoolean("anvilFall.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new AnvilFallListener(this), this);
+            getLogger().info("Anvil Fall Listener feature enabled");
+        }
+
+        // Register pistonLaunchAnvil if enabled in config
+        if (configManager.getBoolean("pistonLaunchAnvil.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new PistonLaunchAnvilListener(this), this);
+            getLogger().info("Piston Launch Anvil Listener feature enabled");
         }
     }
 

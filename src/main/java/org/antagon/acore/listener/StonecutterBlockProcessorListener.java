@@ -113,18 +113,12 @@ public class StonecutterBlockProcessorListener implements Listener {
         // Remove the sandstone entity
         item.remove();
 
-        int maxStackSize = Material.SAND.getMaxStackSize();
-
         // Drop the sand
         // We drop 'amountToDrop' individual items or a stack depending on preference.
         // Here we drop a single stack of 3 sand.
-        if (totalSandToDrop > 0) {
-            int currentDropAmount = Math.min(totalSandToDrop, maxStackSize);
-            
-            ItemStack sandStack = new ItemStack(Material.SAND, currentDropAmount);
-            item.getWorld().dropItem(item.getLocation(), sandStack);
-            
-            totalSandToDrop -= currentDropAmount;
+        if (totalSandToDrop > 0) {            
+            ItemStack sandStack = new ItemStack(Material.SAND, totalSandToDrop);
+            item.getWorld().dropItem(item.getLocation(), sandStack);            
         }
     }
 }
