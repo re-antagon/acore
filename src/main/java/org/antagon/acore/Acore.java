@@ -2,43 +2,31 @@ package org.antagon.acore;
 
 import java.lang.reflect.Constructor;
 
-import org.antagon.acore.commands.AntiSchvapchichiCommand;
 import org.antagon.acore.commands.LinkCommand;
-import org.antagon.acore.commands.SchvapchichiCommand;
 import org.antagon.acore.commands.ShowInfoCommand;
 import org.antagon.acore.core.ConfigManager;
 import org.antagon.acore.listener.AnvilFallListener;
 import org.antagon.acore.listener.BannerHeadListener;
 import org.antagon.acore.listener.BlockInteractionListener;
-import org.antagon.acore.listener.FogPotionListener;
 import org.antagon.acore.listener.ItemFrameListener;
 import org.antagon.acore.listener.MinecartSpeedListener;
 import org.antagon.acore.listener.PistonLaunchAnvilListener;
 import org.antagon.acore.listener.PlayerJoinListener;
 import org.antagon.acore.listener.PlayerMoveListener;
 import org.antagon.acore.listener.ReferralListener;
-import org.antagon.acore.listener.SchvapchichiListener;
 import org.antagon.acore.listener.StonecutterBlockProcessorListener;
 import org.antagon.acore.listener.VillagerTransportListener;
-import org.antagon.acore.util.CurseManager;
 import org.antagon.acore.util.ReferralManager;
-import org.bukkit.command.PluginCommand;
-import org.bukkit.plugin.Plugin;
-import org.bukkit.plugin.java.JavaPlugin;
 
 public final class Acore extends JavaPlugin {
 
     private ConfigManager configManager;
-    private CurseManager curseManager;
     private ReferralManager referralManager;
 
     @Override
     public void onEnable() {
         // Initialize config
         this.configManager = ConfigManager.initialize(getDataFolder(), getLogger());
-
-        // Initialize curse manager
-        this.curseManager = new CurseManager(this);
 
         // Initialize referral manager
         this.referralManager = new ReferralManager(this);
@@ -76,23 +64,10 @@ public final class Acore extends JavaPlugin {
         getServer().getPluginManager().registerEvents(new BlockInteractionListener(), this);
         getLogger().info("Block Interaction Tracker enabled");
 
-        // Register FogPotionListener if enabled in config
-        if (configManager.getBoolean("fogPotion.enabled", true)) {
-            getServer().getPluginManager().registerEvents(new FogPotionListener(this, configManager), this);
-            getLogger().info("Fog Potion feature enabled");
-        }
-
         // Register BannerHeadListener if enabled in config
         if (configManager.getBoolean("bannerHead.enabled", true)) {
             getServer().getPluginManager().registerEvents(new BannerHeadListener(configManager), this);
             getLogger().info("Banner Head feature enabled");
-        }
-
-        // Register SchvapchichiListener if enabled in config
-        if (configManager.getBoolean("schvapchichi.enabled", true)) {
-            getServer().getPluginManager().registerEvents(new SchvapchichiListener(this, curseManager), this);
-            getLogger().info("Schvapchichi feature enabled");
-            getLogger().info("Cursed players loaded: " + curseManager.getCursedPlayers().size());
         }
 
         // Register PlayerMoveListener
@@ -152,50 +127,6 @@ public final class Acore extends JavaPlugin {
             getLogger().info("ShowInfo command registered");
         } catch (Exception e) {
             getLogger().warning("Failed to register showinfo command: " + e.getMessage());
-        }
-
-        // Register schvapchichi command
-        try {
-            var commandMap = getServer().getCommandMap();
-            var command = commandMap.getCommand("schvapchichi");
-            if (command == null) {
-                // Create command if it doesn't exist using reflection
-                Constructor<PluginCommand> constructor =
-                    PluginCommand.class.getDeclaredConstructor(String.class, Plugin.class);
-                constructor.setAccessible(true);
-                command = constructor.newInstance("schvapchichi", this);
-                command.setDescription("Проклясть игрока Швапчичи");
-                command.setUsage("/schvapchichi");
-                ((PluginCommand) command).setExecutor(new SchvapchichiCommand(this, curseManager));
-                commandMap.register("acore", command);
-            } else {
-                ((PluginCommand) command).setExecutor(new SchvapchichiCommand(this, curseManager));
-            }
-            getLogger().info("Schvapchichi command registered");
-        } catch (Exception e) {
-            getLogger().warning("Failed to register schvapchichi command: " + e.getMessage());
-        }
-
-        // Register anti_schvapchichi command
-        try {
-            var commandMap = getServer().getCommandMap();
-            var command = commandMap.getCommand("anti_schvapchichi");
-            if (command == null) {
-                // Create command if it doesn't exist using reflection
-                Constructor<PluginCommand> constructor =
-                    PluginCommand.class.getDeclaredConstructor(String.class, Plugin.class);
-                constructor.setAccessible(true);
-                command = constructor.newInstance("anti_schvapchichi", this);
-                command.setDescription("Избавиться от проклятья Швапчичи");
-                command.setUsage("/anti_schvapchichi");
-                ((PluginCommand) command).setExecutor(new AntiSchvapchichiCommand(this, curseManager));
-                commandMap.register("acore", command);
-            } else {
-                ((PluginCommand) command).setExecutor(new AntiSchvapchichiCommand(this, curseManager));
-            }
-            getLogger().info("AntiSchvapchichi command registered");
-        } catch (Exception e) {
-            getLogger().warning("Failed to register anti_schvapchichi command: " + e.getMessage());
         }
 
         // Register link command

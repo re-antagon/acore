@@ -1,6 +1,7 @@
 package org.antagon.acore.listener;
 
 import org.antagon.acore.util.BlockInteractionTracker;
+import org.antagon.acore.util.BlockInteractionTracker.InteractionType;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -9,9 +10,6 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 
-/**
- * Listens for player interactions with blocks to track them for fog potion feature
- */
 public class BlockInteractionListener implements Listener {
 
     private final BlockInteractionTracker tracker;
@@ -26,7 +24,8 @@ public class BlockInteractionListener implements Listener {
         if (player == null) return;
 
         Location location = event.getBlock().getLocation();
-        tracker.recordInteraction(player, location);
+        // Record as BREAK interaction
+        tracker.recordInteraction(player, location, InteractionType.BREAK);
     }
 
     @EventHandler
@@ -35,7 +34,8 @@ public class BlockInteractionListener implements Listener {
         if (player == null) return;
 
         Location location = event.getBlock().getLocation();
-        tracker.recordInteraction(player, location);
+        // Record as PLACE interaction
+        tracker.recordInteraction(player, location, InteractionType.PLACE);
     }
 
     @EventHandler
@@ -47,6 +47,7 @@ public class BlockInteractionListener implements Listener {
         if (player == null) return;
 
         Location location = event.getClickedBlock().getLocation();
-        tracker.recordInteraction(player, location);
+        // Record as INTERACT interaction
+        tracker.recordInteraction(player, location, InteractionType.INTERACT);
     }
 }

@@ -169,25 +169,36 @@ fireAdjustment:
 bannerHead:
   enabled: true
 
-# Custom fog potion that shows last 3 players who interacted with blocks in radius
-fogPotion:
+# Indicator potions - shows players based on potion type and custom model data
+indicatorPotions:
   enabled: true
-  # Custom Model Data value that identifies the fog potion (set this in your resource pack/item configuration)
-  custom-model-data: 1201
-  # Radius in blocks to track player interactions
+  # Radius in blocks to track player interactions/kills
   radius: 10
   # Duration in seconds for how long to show the action bar message
   display-duration: 10
-  # Cooldown in seconds between uses of the same potion in the same location
+  # Cooldown in seconds between uses of any indicator potion
   cooldown: 30
-
-# Швапчичи feature - cursed players will lose random items on rejoin
-schvapchichi:
-  enabled: true
-  # Curse settings - steal random item from inventory on rejoin
-  curse:
-    stealChance: 0.05  # 5% chance to steal an item
-    message: "&8Швапчичи забирает это..."
+  # Time in hours to look back for players
+  time-lookup-hours: 12
+  
+  # Potion configurations - custom-model-data can be changed in config
+  potions:
+    # Blue indicator - shows players who placed blocks (custom_model_data: 1185)
+    blue_indicator:
+      enabled: true
+      custom-model-data: 1185
+    # Green indicator - shows players who broke blocks (custom_model_data: 1187)
+    green_indicator:
+      enabled: true
+      custom-model-data: 1187
+    # Pink indicator - shows players who interacted with blocks (custom_model_data: 1189)
+    pink_indicator:
+      enabled: true
+      custom-model-data: 1189
+    # Red indicator - shows players who killed entities (custom_model_data: 1191)
+    red_indicator:
+      enabled: true
+      custom-model-data: 1191
 
 # First join item feature - gives MythicMobs item to players on first join
 firstJoinItem:
@@ -212,3 +223,15 @@ anvilFall:
 # Piston Launch Anvil - extend piston so it will launch anvil upwards (if slime block connected to piston)
 pistonLaunchAnvil:
   enabled: true
+
+# Copper Oxidation Acceleration - accelerates copper oxidation when blocks are in water or under rain
+copperOxidation:
+  enabled: true
+  # How much faster copper oxidizes when submerged in water (multiplier)
+  water-speed-multiplier: 4.0
+  # How much faster copper oxidizes when exposed to rain (multiplier)
+  rain-speed-multiplier: 2.0
+  # How often to check for copper blocks (in ticks, 20 = 1 second)
+  check-interval: 40
+  # Radius in blocks to scan around each player for copper blocks
+  scan-radius: 48

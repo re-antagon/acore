@@ -1,22 +1,26 @@
 package org.antagon.acore.util;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 
-/**
- * Tracks player interactions with blocks in specific areas
- */
 public class BlockInteractionTracker {
 
     private static BlockInteractionTracker instance;
 
-    // Map of location -> list of player interactions (timestamp + player name)
+    // Map of location -> list of player interactions (timestamp + player name) - ALL interactions
     private final Map<Location, List<PlayerInteraction>> interactions = new ConcurrentHashMap<>();
+    
+    // Separate maps for different interaction types
+    private final Map<Location, List<PlayerInteraction>> blockPlaces = new ConcurrentHashMap<>();
+    private final Map<Location, List<PlayerInteraction>> blockBreaks = new ConcurrentHashMap<>();
+    private final Map<Location, List<PlayerInteraction>> blockInteracts = new ConcurrentHashMap<>();
 
     // Map of location -> last use timestamp for cooldowns
     private final Map<Location, Long> cooldowns = new ConcurrentHashMap<>();
@@ -33,56 +37,90 @@ public class BlockInteractionTracker {
         return instance;
     }
 
-    /**
-     * Records a player interaction with a block
-     */
-    public void recordInteraction(Player player, Location location) {
+    public enum InteractionType {
+        PLACE,    // Block placed
+        BREAK,    // Block broken
+        INTERACT  // Player interacted with block (right-click)
+    }
+
+    public void recordInteraction(Player player, Location location, InteractionType type) {
         Location key = roundLocation(location);
+        long timestamp = System.currentTimeMillis();
 
+        // Record in general interactions map (for backward compatibility)
         List<PlayerInteraction> locationInteractions = interactions.computeIfAbsent(key, k -> new ArrayList<>());
-
-        // Add new interaction
-        locationInteractions.add(new PlayerInteraction(player.getName(), System.currentTimeMillis()));
-
-        // Keep only last 10 interactions per location to prevent memory leaks
+        locationInteractions.add(new PlayerInteraction(player.getName(), timestamp));
         if (locationInteractions.size() > 10) {
             locationInteractions.remove(0);
         }
+
+        // Record in specific type map
+        Map<Location, List<PlayerInteraction>> targetMap;
+        switch (type) {
+            case PLACE:
+                targetMap = blockPlaces;
+                break;
+            case BREAK:
+                targetMap = blockBreaks;
+                break;
+            case INTERACT:
+            default:
+                targetMap = blockInteracts;
+                break;
+        }
+
+        List<PlayerInteraction> typeList = targetMap.computeIfAbsent(key, k -> new ArrayList<>());
+        typeList.add(new PlayerInteraction(player.getName(), timestamp));
+        if (typeList.size() > 10) {
+            typeList.remove(0);
+        }
     }
 
-    /**
-     * Gets the last 3 players who interacted with blocks in the specified radius
-     */
-    public List<String> getLastPlayersInRadius(Location center, int radius) {
-        Location centerKey = roundLocation(center);
-        List<String> players = new ArrayList<>();
+    public void recordInteraction(Player player, Location location) {
+        recordInteraction(player, location, InteractionType.INTERACT);
+    }
 
-        long currentTime = System.currentTimeMillis();
+    public List<String> getPlayersWhoPlacedBlocks(Location center, int radius, int timeHours) {
+        return getPlayersInRadius(blockPlaces, center, radius, timeHours);
+    }
+
+    public List<String> getPlayersWhoBrokeBlocks(Location center, int radius, int timeHours) {
+        return getPlayersInRadius(blockBreaks, center, radius, timeHours);
+    }
+
+    public List<String> getPlayersWhoInteracted(Location center, int radius, int timeHours) {
+        return getPlayersInRadius(blockInteracts, center, radius, timeHours);
+    }
+
+    public List<String> getLastPlayersInRadius(Location center, int radius) {
+        return getPlayersInRadius(interactions, center, radius, 24);
+    }
+
+    private List<String> getPlayersInRadius(Map<Location, List<PlayerInteraction>> interactionMap, Location center, int radius, int timeHours) {
+        Location centerKey = roundLocation(center);
+        Set<String> players = new HashSet<>();
+
+        long cutoffTime = System.currentTimeMillis() - (timeHours * 60L * 60L * 1000L);
 
         // Check all locations within radius
-        for (Map.Entry<Location, List<PlayerInteraction>> entry : interactions.entrySet()) {
+        for (Map.Entry<Location, List<PlayerInteraction>> entry : interactionMap.entrySet()) {
             Location interactionLocation = entry.getKey();
 
             if (isWithinRadius(centerKey, interactionLocation, radius)) {
                 List<PlayerInteraction> locationInteractions = entry.getValue();
 
                 for (PlayerInteraction interaction : locationInteractions) {
-                    if (!players.contains(interaction.playerName)) {
+                    // Only include interactions within time limit
+                    if (interaction.timestamp >= cutoffTime) {
                         players.add(interaction.playerName);
-                        if (players.size() >= 3) {
-                            return players;
-                        }
                     }
                 }
             }
         }
 
-        return players;
+        return new ArrayList<>(players);
     }
 
-    /**
-     * Checks if a location is on cooldown
-     */
     public boolean isOnCooldown(Location location, int cooldownSeconds) {
         Location key = roundLocation(location);
         Long lastUse = cooldowns.get(key);
@@ -95,9 +133,6 @@ public class BlockInteractionTracker {
         return timeSinceLastUse < cooldownSeconds;
     }
 
-    /**
-     * Gets remaining cooldown time in seconds for a location
-     */
     public int getRemainingCooldown(Location location, int cooldownSeconds) {
         Location key = roundLocation(location);
         Long lastUse = cooldowns.get(key);
@@ -112,32 +147,20 @@ public class BlockInteractionTracker {
         return Math.max(0, (int) remaining);
     }
 
-    /**
-     * Sets cooldown for a location
-     */
     public void setCooldown(Location location) {
         Location key = roundLocation(location);
         cooldowns.put(key, System.currentTimeMillis());
     }
 
-    /**
-     * Force removes cooldown for a location (for testing purposes)
-     */
     public void removeCooldown(Location location) {
         Location key = roundLocation(location);
         cooldowns.remove(key);
     }
 
-    /**
-     * Gets all cooldown locations (for debugging)
-     */
     public Map<Location, Long> getAllCooldowns() {
         return new ConcurrentHashMap<>(cooldowns);
     }
 
-    /**
-     * Checks if a player is on cooldown
-     */
     public boolean isPlayerOnCooldown(Player player, int cooldownSeconds) {
         String playerUUID = player.getUniqueId().toString();
         Long lastUse = playerCooldowns.get(playerUUID);
@@ -150,9 +173,6 @@ public class BlockInteractionTracker {
         return timeSinceLastUse < cooldownSeconds;
     }
 
-    /**
-     * Gets remaining cooldown time in seconds for a player
-     */
     public int getPlayerRemainingCooldown(Player player, int cooldownSeconds) {
         String playerUUID = player.getUniqueId().toString();
         Long lastUse = playerCooldowns.get(playerUUID);
@@ -167,24 +187,15 @@ public class BlockInteractionTracker {
         return Math.max(0, (int) remaining);
     }
 
-    /**
-     * Sets cooldown for a player
-     */
     public void setPlayerCooldown(Player player) {
         String playerUUID = player.getUniqueId().toString();
         playerCooldowns.put(playerUUID, System.currentTimeMillis());
     }
 
-    /**
-     * Gets all player cooldowns (for debugging)
-     */
     public Map<String, Long> getAllPlayerCooldowns() {
         return new ConcurrentHashMap<>(playerCooldowns);
     }
 
-    /**
-     * Rounds location to block coordinates for consistent tracking
-     */
     private Location roundLocation(Location location) {
         return new Location(location.getWorld(),
                           location.getBlockX(),
@@ -192,18 +203,12 @@ public class BlockInteractionTracker {
                           location.getBlockZ());
     }
 
-    /**
-     * Gets the exact location key for debugging purposes
-     */
     public Location getLocationKey(Location location) {
         return roundLocation(location);
     }
 
-    /**
-     * Checks if two locations are within specified radius
-     */
     private boolean isWithinRadius(Location center, Location location, int radius) {
-        if (!center.getWorld().equals(location.getWorld())) {
+        if (center.getWorld() == null || location.getWorld() == null || !center.getWorld().equals(location.getWorld())) {
             return false;
         }
 
@@ -211,9 +216,6 @@ public class BlockInteractionTracker {
         return distance <= radius;
     }
 
-    /**
-     * Checks if two locations are the same (for exact location matching)
-     */
     private boolean isSameLocation(Location loc1, Location loc2) {
         if (!loc1.getWorld().equals(loc2.getWorld())) {
             return false;
@@ -221,12 +223,9 @@ public class BlockInteractionTracker {
 
         return loc1.getBlockX() == loc2.getBlockX() &&
                loc1.getBlockY() == loc2.getBlockY() &&
-               loc2.getBlockZ() == loc2.getBlockZ();
+               loc1.getBlockZ() == loc2.getBlockZ();
     }
 
-    /**
-     * Represents a player interaction with a block
-     */
     private static class PlayerInteraction {
         final String playerName;
         final long timestamp;
@@ -237,16 +236,17 @@ public class BlockInteractionTracker {
         }
     }
 
-    /**
-     * Cleans up old interactions to prevent memory leaks
-     */
     public void cleanupOldInteractions() {
         long cutoffTime = System.currentTimeMillis() - (24 * 60 * 60 * 1000); // 24 hours ago
 
-        interactions.entrySet().removeIf(entry -> {
-            entry.getValue().removeIf(interaction -> interaction.timestamp < cutoffTime);
-            return entry.getValue().isEmpty();
-        });
+        List<Map<Location, List<PlayerInteraction>>> maps = List.of(interactions, blockPlaces, blockBreaks, blockInteracts);
+        
+        for (Map<Location, List<PlayerInteraction>> map : maps) {
+            map.entrySet().removeIf(entry -> {
+                entry.getValue().removeIf(interaction -> interaction.timestamp < cutoffTime);
+                return entry.getValue().isEmpty();
+            });
+        }
 
         // Clean up old cooldowns (older than 1 hour)
         long cooldownCutoff = System.currentTimeMillis() - (60 * 60 * 1000);
