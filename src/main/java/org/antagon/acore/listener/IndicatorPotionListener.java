@@ -13,8 +13,12 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
+import org.bukkit.inventory.meta.components.CustomModelDataComponent;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitRunnable;
+
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 
 public class IndicatorPotionListener implements Listener {
 
@@ -87,7 +91,8 @@ public class IndicatorPotionListener implements Listener {
 
         if (blockTracker.isPlayerOnCooldown(player, cooldown)) {
             int remainingCooldown = blockTracker.getPlayerRemainingCooldown(player, cooldown);
-            player.sendActionBar("§cВы недавно использовали зелье! Подождите еще §e" + remainingCooldown + " §cсекунд.");
+            String msg = "§cВы недавно использовали зелье! Подождите еще §e" + remainingCooldown + " §cсекунд.";
+            player.sendActionBar(LegacyComponentSerializer.legacySection().deserialize(msg));
             event.setCancelled(true); // Cancel the potion throw
             return;
         }
@@ -147,16 +152,17 @@ public class IndicatorPotionListener implements Listener {
         ItemStack item = potion.getItem();
         if (item != null && item.hasItemMeta()) {
             ItemMeta meta = item.getItemMeta();
-            if (meta != null && meta.hasCustomModelData()) {
-                int cmd = meta.getCustomModelData();
+            if (meta != null && meta.hasCustomModelDataComponent()) {
+                CustomModelDataComponent cmdComponent = meta.getCustomModelDataComponent();
+                List<Float> floats = cmdComponent.getFloats();
                 
                 // Check each potion type
                 for (PotionType type : PotionType.values()) {
-                    int configCmd = configManager.getInt(
+                    float configCmd = configManager.getInt(
                         "indicatorPotions.potions." + type.getConfigKey() + ".custom-model-data",
                         type.getDefaultCmd()
                     );
-                    if (cmd == configCmd) {
+                    if (floats.contains(configCmd)) {
                         return type;
                     }
                 }
@@ -167,8 +173,11 @@ public class IndicatorPotionListener implements Listener {
     }
 
     private void showActionBarForDuration(Player player, String message, int seconds) {
+        // Convert legacy color codes to Adventure Component
+        Component component = LegacyComponentSerializer.legacySection().deserialize(message);
+        
         // Show initial message
-        player.sendActionBar(message);
+        player.sendActionBar(component);
 
         if (seconds > 0) {
             // Schedule repeated messages
@@ -182,7 +191,7 @@ public class IndicatorPotionListener implements Listener {
                         return;
                     }
 
-                    player.sendActionBar(message);
+                    player.sendActionBar(component);
                     remaining--;
                 }
             }.runTaskTimer(plugin, 20L, 20L); // Every second

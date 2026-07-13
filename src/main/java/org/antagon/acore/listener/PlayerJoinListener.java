@@ -19,6 +19,9 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.inventory.ItemStack;
 
+import io.papermc.paper.datacomponent.DataComponentTypes;
+import io.papermc.paper.datacomponent.item.CustomModelData;
+
 public class PlayerJoinListener implements Listener {
 
     private final Logger logger = Logger.getLogger(PlayerJoinListener.class.getName());
@@ -112,12 +115,9 @@ public class PlayerJoinListener implements Listener {
                 return;
             }
 
-            // Set custom model data
-            var meta = item.getItemMeta();
-            if (meta != null) {
-                meta.setCustomModelData(customModelData);
-                item.setItemMeta(meta);
-            }
+            // Set custom model data using the DataComponent API (1.21.5+)
+            item.setData(DataComponentTypes.CUSTOM_MODEL_DATA, 
+                CustomModelData.customModelData().addFloat(customModelData).build());
 
             // Give item to player
             player.getInventory().addItem(item);

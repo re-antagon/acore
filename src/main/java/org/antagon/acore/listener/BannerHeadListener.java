@@ -41,7 +41,7 @@ public class BannerHeadListener implements Listener {
                 if (isBanner(clickedItem)) {
                     event.setCurrentItem(new ItemStack(Material.AIR));
                 } else {
-                    event.setCursor(new ItemStack(Material.AIR));
+                    player.setItemOnCursor(new ItemStack(Material.AIR));
                 }
 
                 event.setCancelled(true);
