@@ -7,8 +7,13 @@ import org.antagon.acore.commands.ShowInfoCommand;
 import org.antagon.acore.core.ConfigManager;
 import org.antagon.acore.listener.AnvilFallListener;
 import org.antagon.acore.listener.BannerHeadListener;
+import org.antagon.acore.listener.BlockBurnListener;
 import org.antagon.acore.listener.BlockInteractionListener;
+import org.antagon.acore.listener.CopperOxidationListener;
+import org.antagon.acore.listener.EntityKillListener;
+import org.antagon.acore.listener.IndicatorPotionListener;
 import org.antagon.acore.listener.ItemFrameListener;
+import org.antagon.acore.listener.LightningConversionListener;
 import org.antagon.acore.listener.MinecartSpeedListener;
 import org.antagon.acore.listener.PistonLaunchAnvilListener;
 import org.antagon.acore.listener.PlayerJoinListener;
@@ -17,6 +22,9 @@ import org.antagon.acore.listener.ReferralListener;
 import org.antagon.acore.listener.StonecutterBlockProcessorListener;
 import org.antagon.acore.listener.VillagerTransportListener;
 import org.antagon.acore.util.ReferralManager;
+import org.bukkit.command.PluginCommand;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.java.JavaPlugin;
 
 public final class Acore extends JavaPlugin {
 
@@ -39,9 +47,8 @@ public final class Acore extends JavaPlugin {
 
         getLogger().info("Acore plugin has been enabled successfully!");
 
-        // !!! С этим полем плагин не заводится, хз почему, поэтому пока так !!!
-        // потом почекаю
-        //ConditionalEventsAPI.registerApiActions(this,new SpawnMythicMob(), new DropMythicItem());
+        // ConditionalEvents API actions - disabled for now
+        // ConditionalEventsAPI.registerApiActions(this,new SpawnMythicMob(), new DropMythicItem());
     }
 
     private void registerListeners() {
@@ -58,11 +65,20 @@ public final class Acore extends JavaPlugin {
             getLogger().info("Minecart Speed feature enabled");
         }
 
-        getServer().getPluginManager().registerEvents(new ItemFrameListener(configManager), this);
+        // ItemFrameListener - invisible item frames
+        if (configManager.getBoolean("invisibleItemFrames.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new ItemFrameListener(configManager), this);
+            getLogger().info("Invisible ItemFrames feature enabled");
+        }
 
         // Register BlockInteractionListener for tracking player block interactions
+        // Always enabled if indicatorPotions is enabled, but we keep it always on for tracker
         getServer().getPluginManager().registerEvents(new BlockInteractionListener(), this);
         getLogger().info("Block Interaction Tracker enabled");
+
+        // Register EntityKillListener for indicator potions
+        getServer().getPluginManager().registerEvents(new EntityKillListener(), this);
+        getLogger().info("Entity Kill Tracker enabled");
 
         // Register BannerHeadListener if enabled in config
         if (configManager.getBoolean("bannerHead.enabled", true)) {
@@ -70,8 +86,9 @@ public final class Acore extends JavaPlugin {
             getLogger().info("Banner Head feature enabled");
         }
 
-        // Register PlayerMoveListener
+        // Register PlayerMoveListener - betterRun and beehive features
         getServer().getPluginManager().registerEvents(new PlayerMoveListener(), this);
+        getLogger().info("PlayerMove (betterRun) feature enabled");
 
         // Register PlayerJoinListener if enabled in config
         if (configManager.getBoolean("firstJoinItem.enabled", true)) {
@@ -103,6 +120,30 @@ public final class Acore extends JavaPlugin {
         if (configManager.getBoolean("pistonLaunchAnvil.enabled", true)) {
             getServer().getPluginManager().registerEvents(new PistonLaunchAnvilListener(this), this);
             getLogger().info("Piston Launch Anvil Listener feature enabled");
+        }
+
+        // Register BlockBurnListener / fireAdjustment
+        if (configManager.getBoolean("fireAdjustment.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new BlockBurnListener(), this);
+            getLogger().info("Fire Adjustment (BlockBurn) feature enabled");
+        }
+
+        // Register LightningConversionListener
+        if (configManager.getBoolean("lightningConversion.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new LightningConversionListener(), this);
+            getLogger().info("Lightning Conversion feature enabled");
+        }
+
+        // Register IndicatorPotionListener
+        if (configManager.getBoolean("indicatorPotions.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new IndicatorPotionListener(this, configManager), this);
+            getLogger().info("Indicator Potions feature enabled");
+        }
+
+        // Register CopperOxidationListener
+        if (configManager.getBoolean("copperOxidation.enabled", true)) {
+            getServer().getPluginManager().registerEvents(new CopperOxidationListener(this, configManager), this);
+            getLogger().info("Copper Oxidation feature enabled");
         }
     }
 
