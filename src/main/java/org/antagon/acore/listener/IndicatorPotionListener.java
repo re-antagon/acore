@@ -1,6 +1,9 @@
 package org.antagon.acore.listener;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.antagon.acore.core.ConfigManager;
 import org.antagon.acore.util.BlockInteractionTracker;
@@ -10,6 +13,7 @@ import org.bukkit.entity.Player;
 import org.bukkit.entity.ThrownPotion;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
+import org.bukkit.event.entity.ProjectileHitEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -27,9 +31,23 @@ public class IndicatorPotionListener implements Listener {
     private final BlockInteractionTracker blockTracker = BlockInteractionTracker.getInstance();
     private final EntityKillTracker entityTracker = EntityKillTracker.getInstance();
 
+    // Registered indicator potions awaiting impact: UUID → (PotionType, Player name)
+    private final Map<UUID, PendingPotion> pendingPotions = new ConcurrentHashMap<>();
+
     public IndicatorPotionListener(JavaPlugin plugin, ConfigManager configManager) {
         this.plugin = plugin;
         this.configManager = configManager;
+
+        // Clean up stale entries (potions that never landed, e.g. fell into void)
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                pendingPotions.entrySet().removeIf(entry -> {
+                    org.bukkit.entity.Entity entity = plugin.getServer().getEntity(entry.getKey());
+                    return entity == null || !entity.isValid();
+                });
+            }
+        }.runTaskTimer(plugin, 600L, 600L); // Every 30 seconds
     }
 
     public enum PotionType {
@@ -58,31 +76,27 @@ public class IndicatorPotionListener implements Listener {
 
     @EventHandler
     public void onProjectileLaunch(ProjectileLaunchEvent event) {
-        if (!(event.getEntity() instanceof ThrownPotion)) {
+        if (!(event.getEntity() instanceof ThrownPotion thrownPotion)) {
             return;
         }
-
-        ThrownPotion thrownPotion = (ThrownPotion) event.getEntity();
 
         // Try to get the player who threw the potion
-        if (!(thrownPotion.getShooter() instanceof Player)) {
+        if (!(thrownPotion.getShooter() instanceof Player player)) {
             return;
         }
-
-        Player player = (Player) thrownPotion.getShooter();
 
         // Check if this is our indicator potion and get its type
         PotionType potionType = getPotionType(thrownPotion);
         if (potionType == null) return;
-        
-        // Check if this potion type is enabled in config
-        String enabledPath = "indicatorPotions.potions." + potionType.getConfigKey() + ".enabled";
-        if (!configManager.getBoolean(enabledPath, true)) {
-            return;
-        }
 
         // Check global enabled setting
         if (!configManager.getBoolean("indicatorPotions.enabled", true)) {
+            return;
+        }
+
+        // Check if this potion type is enabled in config
+        String enabledPath = "indicatorPotions.potions." + potionType.getConfigKey() + ".enabled";
+        if (!configManager.getBoolean(enabledPath, true)) {
             return;
         }
 
@@ -100,21 +114,33 @@ public class IndicatorPotionListener implements Listener {
         // Set player cooldown immediately when potion is thrown
         blockTracker.setPlayerCooldown(player);
 
-        // Schedule the effect after a short delay to let the potion land
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                handleIndicatorPotionEffect(thrownPotion, player, potionType);
-            }
-        }.runTaskLater(plugin, 20L); // 1 second delay
+        // Register the potion so we can process it when it lands
+        pendingPotions.put(thrownPotion.getUniqueId(), new PendingPotion(potionType, player.getUniqueId()));
     }
 
-    private void handleIndicatorPotionEffect(ThrownPotion thrownPotion, Player player, PotionType potionType) {
+    @EventHandler
+    public void onProjectileHit(ProjectileHitEvent event) {
+        if (!(event.getEntity() instanceof ThrownPotion thrownPotion)) {
+            return;
+        }
+
+        UUID potionUUID = thrownPotion.getUniqueId();
+        PendingPotion pending = pendingPotions.remove(potionUUID);
+        if (pending == null) return;
+
+        Player player = plugin.getServer().getPlayer(pending.playerId);
+        if (player == null || !player.isOnline()) return;
+
+        // Get the impact location — the entity is still valid at this point
         Location effectLocation = thrownPotion.getLocation();
 
+        // Process the indicator effect at the impact location
+        handleIndicatorPotionEffect(effectLocation, player, pending.potionType);
+    }
+
+    private void handleIndicatorPotionEffect(Location effectLocation, Player player, PotionType potionType) {
         // Get configuration values
         int radius = configManager.getInt("indicatorPotions.radius", 10);
-        int displayDuration = configManager.getInt("indicatorPotions.display-duration", 10);
         int timeHours = configManager.getInt("indicatorPotions.time-lookup-hours", 12);
 
         // Get players based on potion type
@@ -136,7 +162,7 @@ public class IndicatorPotionListener implements Listener {
         }
 
         if (players.isEmpty()) {
-            showActionBarForDuration(player, "§7В этом радиусе никого не обнаружено за последние §e" + timeHours + " §7часов.", displayDuration);
+            showChatMessage(player, "§7В этом радиусе никого не обнаружено за последние §e" + timeHours + " §7часов.");
             return;
         }
 
@@ -144,8 +170,8 @@ public class IndicatorPotionListener implements Listener {
         String playerList = String.join(potionType.getColorCode() + ", " + potionType.getColorCode(), players);
         String message = potionType.getMessagePrefix() + ": " + potionType.getColorCode() + playerList;
 
-        // Show in action bar for specified duration
-        showActionBarForDuration(player, message, displayDuration);
+        // Show in chat
+        showChatMessage(player, message);
     }
 
     private PotionType getPotionType(ThrownPotion potion) {
@@ -155,7 +181,7 @@ public class IndicatorPotionListener implements Listener {
             if (meta != null && meta.hasCustomModelDataComponent()) {
                 CustomModelDataComponent cmdComponent = meta.getCustomModelDataComponent();
                 List<Float> floats = cmdComponent.getFloats();
-                
+
                 // Check each potion type
                 for (PotionType type : PotionType.values()) {
                     float configCmd = configManager.getInt(
@@ -172,29 +198,17 @@ public class IndicatorPotionListener implements Listener {
         return null;
     }
 
-    private void showActionBarForDuration(Player player, String message, int seconds) {
-        // Convert legacy color codes to Adventure Component
-        Component component = LegacyComponentSerializer.legacySection().deserialize(message);
-        
-        // Show initial message
-        player.sendActionBar(component);
+    private void showChatMessage(Player player, String message) {
+        // Build a beautiful multi-line chat message with borders
+        String line1 = "§7§m                                             ";
+        String line2 = " " + message + " ";
+        String line3 = "§7§m                                             ";
 
-        if (seconds > 0) {
-            // Schedule repeated messages
-            new BukkitRunnable() {
-                private int remaining = seconds;
+        String fullMessage = "\n" + line1 + "\n" + line2 + "\n" + line3;
 
-                @Override
-                public void run() {
-                    if (remaining <= 0 || !player.isOnline()) {
-                        this.cancel();
-                        return;
-                    }
-
-                    player.sendActionBar(component);
-                    remaining--;
-                }
-            }.runTaskTimer(plugin, 20L, 20L); // Every second
-        }
+        Component component = LegacyComponentSerializer.legacySection().deserialize(fullMessage);
+        player.sendMessage(component);
     }
+
+    private record PendingPotion(PotionType potionType, UUID playerId) {}
 }
