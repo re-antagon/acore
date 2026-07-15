@@ -84,6 +84,8 @@ public final class Acore extends JavaPlugin {
         if (configManager.getBoolean("bannerHead.enabled", true)) {
             getServer().getPluginManager().registerEvents(new BannerHeadListener(configManager), this);
             getLogger().info("Banner Head feature enabled");
+        } else {
+            getLogger().info("Banner Head feature is DISABLED in config");
         }
 
         // Register PlayerMoveListener - betterRun and beehive features
@@ -118,8 +120,11 @@ public final class Acore extends JavaPlugin {
 
         // Register pistonLaunchAnvil if enabled in config
         if (configManager.getBoolean("pistonLaunchAnvil.enabled", true)) {
+            getLogger().info("Registering PistonLaunchAnvilListener...");
             getServer().getPluginManager().registerEvents(new PistonLaunchAnvilListener(this), this);
             getLogger().info("Piston Launch Anvil Listener feature enabled");
+        } else {
+            getLogger().info("Piston Launch Anvil feature is DISABLED in config");
         }
 
         // Register BlockBurnListener / fireAdjustment
