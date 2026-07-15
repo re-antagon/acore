@@ -7,6 +7,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.BannerMeta;
 
 public class BannerHeadListener implements Listener {
 
@@ -22,50 +24,53 @@ public class BannerHeadListener implements Listener {
             return;
         }
 
-        if (!(event.getWhoClicked() instanceof Player player)) {
+        if (!(event.getInventory() instanceof PlayerInventory)) {
             return;
         }
 
-        ItemStack cursorItem = event.getCursor();
+        Player player = (Player) event.getWhoClicked();
         ItemStack clickedItem = event.getCurrentItem();
+        ItemStack cursorItem = event.getCursor();
 
-        // Determine which item is the banner (cursor or clicked slot)
-        ItemStack banner = null;
-        boolean bannerOnCursor = false;
 
-        if (isBanner(cursorItem)) {
-            banner = cursorItem;
-            bannerOnCursor = true;
-        } else if (isBanner(clickedItem)) {
-            banner = clickedItem;
-        }
 
-        if (banner == null) {
-            return;
-        }
 
-        // Helmet slot rawSlot in player inventory view:
-        // 5 = helmet, 6 = chestplate, 7 = leggings, 8 = boots
-        int rawSlot = event.getRawSlot();
 
-        // Only handle clicks on the helmet slot (rawSlot 5)
-        if (rawSlot != 5) {
-            return;
-        }
 
-        // If banner is on cursor → put it on head
-        if (bannerOnCursor) {
-            player.getInventory().setHelmet(banner.clone());
-            player.setItemOnCursor(new ItemStack(Material.AIR));
-            event.setCancelled(true);
-            player.updateInventory();
-        }
-        // If banner is in helmet slot → pick it up to cursor
-        else {
-            player.setItemOnCursor(banner.clone());
-            player.getInventory().setHelmet(new ItemStack(Material.AIR));
-            event.setCancelled(true);
-            player.updateInventory();
+
+
+
+
+
+
+
+        if (isBanner(clickedItem) || isBanner(cursorItem)) {
+            ItemStack banner = isBanner(clickedItem) ? clickedItem : cursorItem;
+
+
+            if (event.getSlot() == 39) {
+                player.getInventory().setHelmet(banner.clone());
+
+
+                if (isBanner(clickedItem)) {
+                    event.setCurrentItem(new ItemStack(Material.AIR));
+                } else {
+                    player.setItemOnCursor(new ItemStack(Material.AIR));
+                }
+
+                event.setCancelled(true);
+                player.updateInventory();
+            }
+
+
+
+
+
+
+
+
+
+
         }
     }
 
@@ -74,7 +79,23 @@ public class BannerHeadListener implements Listener {
             return false;
         }
 
-        String name = item.getType().name();
-        return name.endsWith("_BANNER");
+        Material type = item.getType();
+        return type == Material.WHITE_BANNER ||
+               type == Material.ORANGE_BANNER ||
+               type == Material.MAGENTA_BANNER ||
+               type == Material.LIGHT_BLUE_BANNER ||
+               type == Material.YELLOW_BANNER ||
+               type == Material.LIME_BANNER ||
+               type == Material.PINK_BANNER ||
+               type == Material.GRAY_BANNER ||
+               type == Material.LIGHT_GRAY_BANNER ||
+               type == Material.CYAN_BANNER ||
+               type == Material.PURPLE_BANNER ||
+               type == Material.BLUE_BANNER ||
+               type == Material.BROWN_BANNER ||
+               type == Material.GREEN_BANNER ||
+               type == Material.RED_BANNER ||
+               type == Material.BLACK_BANNER ||
+               (item.hasItemMeta() && item.getItemMeta() instanceof BannerMeta);
     }
 }
